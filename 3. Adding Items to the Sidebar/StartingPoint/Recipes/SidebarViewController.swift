@@ -13,11 +13,11 @@ class SidebarViewController: UIViewController {
     private enum SidebarItemType: Int {
         case header, expandableRow, row
     }
-
+    
     private enum SidebarSection: Int {
         case library, collections
     }
-
+    
     private struct SidebarItem: Hashable, Identifiable {
         let id: UUID
         let type: SidebarItemType
@@ -28,7 +28,7 @@ class SidebarViewController: UIViewController {
         static func header(title: String, id: UUID = UUID()) -> Self {
             return SidebarItem(id: id, type: .header, title: title, subtitle: nil, image: nil)
         }
-
+        
         static func expandableRow(title: String, subtitle: String?, image: UIImage?, id: UUID = UUID()) -> Self {
             return SidebarItem(id: id, type: .expandableRow, title: title, subtitle: subtitle, image: image)
         }
@@ -45,13 +45,15 @@ class SidebarViewController: UIViewController {
     }
 
     private var collectionView: UICollectionView!
+    private var dataSource: UICollectionViewDiffableDataSource<SidebarSection, SidebarItem>!
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
         configureCollectionView()
+        configureDataSource()
     }
-
+    
 }
 
 @available(iOS 14, *)
@@ -64,7 +66,7 @@ extension SidebarViewController {
         collectionView.delegate = self
         view.addSubview(collectionView)
     }
-
+    
     private func createLayout() -> UICollectionViewLayout {
         let layout = UICollectionViewCompositionalLayout() { (sectionIndex, layoutEnvironment) -> NSCollectionLayoutSection? in
             var configuration = UICollectionLayoutListConfiguration(appearance: .sidebar)
@@ -75,10 +77,65 @@ extension SidebarViewController {
         }
         return layout
     }
-
+    
 }
 
 @available(iOS 14, *)
 extension SidebarViewController: UICollectionViewDelegate {
+    
+}
+
+@available(iOS 14, *)
+extension SidebarViewController {
+    
+    private func configureDataSource() {
+        let headerRegistration = UICollectionView.CellRegistration<UICollectionViewListCell, SidebarItem> {
+            (cell, indexPath, item) in
+            
+            var contentConfiguration = UIListContentConfiguration.sidebarHeader()
+            contentConfiguration.text = item.title
+            contentConfiguration.textProperties.font = .preferredFont(forTextStyle: .subheadline)
+            contentConfiguration.textProperties.color = .secondaryLabel
+            
+            cell.contentConfiguration = contentConfiguration
+            cell.accessories = [.outlineDisclosure()]
+        }
+        
+        let expandableRowRegistration = UICollectionView.CellRegistration<UICollectionViewListCell, SidebarItem> {
+            (cell, indexPath, item) in
+            
+            var contentConfiguration = UIListContentConfiguration.sidebarSubtitleCell()
+            contentConfiguration.text = item.title
+            contentConfiguration.secondaryText = item.subtitle
+            contentConfiguration.image = item.image
+            
+            cell.contentConfiguration = contentConfiguration
+            cell.accessories = [.outlineDisclosure()]
+        }
+        
+        let rowRegistration = UICollectionView.CellRegistration<UICollectionViewListCell, SidebarItem> {
+            (cell, indexPath, item) in
+            
+            var contentConfiguration = UIListContentConfiguration.sidebarSubtitleCell()
+            contentConfiguration.text = item.title
+            contentConfiguration.secondaryText = item.subtitle
+            contentConfiguration.image = item.image
+            
+            cell.contentConfiguration = contentConfiguration
+        }
+        
+        dataSource = UICollectionViewDiffableDataSource<SidebarSection, SidebarItem>(collectionView: collectionView) {
+            (collectionView, indexPath, item) -> UICollectionViewCell in
+            
+            switch item.type {
+            case .header:
+                return collectionView.dequeueConfiguredReusableCell(using: headerRegistration, for: indexPath, item: item)
+            case .expandableRow:
+                return collectionView.dequeueConfiguredReusableCell(using: expandableRowRegistration, for: indexPath, item: item)
+            default:
+                return collectionView.dequeueConfiguredReusableCell(using: rowRegistration, for: indexPath, item: item)
+            }
+        }
+    }
     
 }
